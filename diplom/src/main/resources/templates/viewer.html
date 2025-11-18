@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <title>PPT Viewer</title>
+    <style>
+        body { text-align:center; font-family:Arial; }
+        img { max-width:800px; border:1px solid #777; }
+    </style>
+</head>
+<body>
+
+<h2>Просмотр PowerPoint</h2>
+
+<img id="slide" src="/slides/1"/>
+
+<br><br>
+<button onclick="prev()">⟵ Назад</button>
+<button onclick="next()">Вперёд ⟶</button>
+
+<script>
+    let slide = 1;
+    const max = [[${slides}]];
+
+    function update() {
+        document.getElementById("slide").src = "/slides/" + slide;
+    }
+
+    function next() {
+        if (slide < max) slide++;
+        update();
+    }
+
+    function prev() {
+        if (slide > 1) slide--;
+        update();
+    }
+</script>
+
+</body>
+</html>
