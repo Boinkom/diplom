@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8"/>
     <title>PPT Viewer</title>
@@ -12,29 +12,57 @@
 
 <h2>Просмотр PowerPoint</h2>
 
-<img id="slide" src="/slides/1"/>
+<img id="slide" th:src="@{'/slides/' + ${current}}" />
 
 <br><br>
-<button onclick="prev()">⟵ Назад</button>
-<button onclick="next()">Вперёд ⟶</button>
+<button id="prevBtn">⟵ Назад</button>
+<button id="nextBtn">Вперёд ⟶</button>
 
 <script>
-    let slide = 1;
+    let slide = [[${current}]];
     const max = [[${slides}]];
+    const pauseSlide = [[${numberSlide}]]
 
-    function update() {
-        document.getElementById("slide").src = "/slides/" + slide;
+    const imgEl = document.getElementById('slide');
+
+    function updateImage() {
+        imgEl.src = "/slides/" + slide;
     }
 
-    function next() {
+    function pushUrl() {
+        history.pushState({slide: slide}, "", "/view/" + slide);
+    }
+
+    document.getElementById('nextBtn').addEventListener('click', () => {
         if (slide < max) slide++;
-        update();
-    }
+        if (slide === pauseSlide) {
+            window.location.href = "/view/" + slide;
+            return;
+        }
+        updateImage();
+        pushUrl();
+    });
 
-    function prev() {
+    document.getElementById('prevBtn').addEventListener('click', () => {
         if (slide > 1) slide--;
-        update();
-    }
+        updateImage();
+        pushUrl();
+    });
+
+    window.addEventListener('popstate', (event) => {
+        const parts = location.pathname.split('/');
+        const maybe = parseInt(parts[parts.length - 1]);
+        if (!isNaN(maybe) && maybe >= 1 && maybe <= max) {
+            slide = maybe;
+            updateImage();
+        } else {
+            slide = 1;
+            updateImage();
+            history.replaceState({slide:1}, "", "/view/1");
+        }
+    });
+
+    history.replaceState({slide: slide}, "", "/view/" + slide);
 </script>
 
 </body>

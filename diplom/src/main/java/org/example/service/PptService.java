@@ -51,4 +51,7 @@ public class PptService {
     public BufferedImage getSlide(int index) {
         return slides.get(index);
     }
+    public int getSlideNumber(int index) {
+        return slides.get(index).getWidth();
+    }
 }
