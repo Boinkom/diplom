@@ -1,6 +1,6 @@
 package org.example.telegram;
 
-import lombok.AllArgsConstructor;
+import lombok.Getter;
 import org.example.config.BotConfig;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -9,16 +9,27 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.HashSet;
+import java.util.*;
 import java.util.Set;
 
+
 @Component
-@AllArgsConstructor
 public class TelegramBot extends TelegramLongPollingBot {
 
     private final BotConfig botConfig;
 
-    // Храним chatId всех пользователей, которые писали боту
+    @Getter
+    private int pauseSlide;
+    private String otvetNumber;
     private final Set<String> chatIds = new HashSet<>();
+
+
+    private final Map<Long, Boolean> waitingForAnswer = new HashMap<>();
+    private final Map<Long, String> correctAnswer = new HashMap<>();
+
+    public TelegramBot(BotConfig botConfig) {
+        this.botConfig = botConfig;
+    }
 
     @Override
     public String getBotUsername() {
@@ -32,47 +43,86 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            String messageText = update.getMessage().getText();
-            long chatId = update.getMessage().getChatId();
-            chatIds.add(String.valueOf(chatId)); // сохраняем chatId
+        if (!update.hasMessage() || !update.getMessage().hasText()) return;
 
-            switch (messageText) {
-                case "/start":
-                    startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
-                    break;
+        String messageText = update.getMessage().getText();
+        long chatId = update.getMessage().getChatId();
+        chatIds.add(String.valueOf(chatId));
+
+        if (waitingForAnswer.getOrDefault(chatId, false)) {
+            handleAnswer(chatId, messageText);
+            return;
+        }
+
+        if (messageText.startsWith("/start")) {
+            startCommandReceived(chatId, update.getMessage().getChat().getFirstName());
+        }
+
+        if (messageText.startsWith("/que")) {
+            setPauseSlide(chatId, messageText);
+        }
+    }
+
+    private void setPauseSlide(long chatId, String messageText) {
+        try {
+            String[] parts = messageText.split("\\s+");
+            if (parts.length == 3) {
+                pauseSlide = Integer.parseInt(parts[1]);
+                otvetNumber = parts[2];
+                correctAnswer.put(chatId, otvetNumber);
+                waitingForAnswer.put(chatId, false);
+
+                sendMessage(chatId, "Теперь пауза будет после слайда " + pauseSlide);
+            } else {
+                sendMessage(chatId, "Неверный формат команды. Используйте: /que <номер_слайда> <номер_ответа>");
+            }
+        } catch (NumberFormatException e) {
+            sendMessage(chatId, "Неверный номер слайда. Используйте: /que <номер_слайда> <номер_ответа>");
+        }
+    }
+
+    public void sendAllMessages(String textToSend) {
+        for (String chatIdStr : chatIds) {
+            long chatId = Long.parseLong(chatIdStr);
+            SendMessage sendMessage = new SendMessage();
+            sendMessage.setChatId(chatIdStr);
+            sendMessage.setText(textToSend);
+            try {
+                execute(sendMessage);
+                waitingForAnswer.put(chatId, true);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
             }
         }
     }
 
-    private void startCommandReceived(long chatId, String userName) {
-        String answer = "You " + userName + " xuesos";
-        sendMessage(chatId, answer);
+    private void handleAnswer(long chatId, String messageText) {
+
+
+        if (messageText.equals(otvetNumber)) {
+            sendMessage(chatId, "Верно! Продолжаем презентацию.");
+        } else {
+            sendMessage(chatId, "Неверно! Продолжаем презентацию.");
+        }
+
+
+        waitingForAnswer.remove(chatId);
     }
 
-    // Отправка отдельного сообщения
-    public void sendMessage(Long chatId, String textToSend) {
+    private void startCommandReceived(long chatId, String userName) {
+        sendMessage(chatId, "You, " + userName + "xuesos");
+    }
+
+    private void sendMessage(long chatId, String textToSend) {
         SendMessage sendMessage = new SendMessage();
         sendMessage.setChatId(String.valueOf(chatId));
         sendMessage.setText(textToSend);
         try {
             execute(sendMessage);
         } catch (TelegramApiException e) {
-            e.printStackTrace(); // выводим ошибку
+            e.printStackTrace();
         }
     }
 
-    // Отправка сообщения всем пользователям
-    public void sendAllMessages(String textToSend) {
-        for (String chatId : chatIds) {
-            SendMessage sendMessage = new SendMessage();
-            sendMessage.setChatId(chatId);
-            sendMessage.setText(textToSend);
-            try {
-                execute(sendMessage);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
-        }
-    }
+
 }

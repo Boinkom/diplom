@@ -1,5 +1,6 @@
 package org.example.controller;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import org.example.service.PptService;
 import org.example.telegram.TelegramBot;
@@ -19,8 +20,12 @@ public class PptController {
 
     @Autowired
     private PptService pptService;
-    private final int pauseSlide = 4;
+
+    private int pauseSlide = 4;
+
+    @Getter
     private boolean paused = true;
+
     private final TelegramBot telegramBot;
 
     @GetMapping("/")
@@ -31,11 +36,13 @@ public class PptController {
     @GetMapping("/view/{id}")
     public String view(@PathVariable int id, Model model) {
 
+        pauseSlide = telegramBot.getPauseSlide();
         if (id == pauseSlide && paused) {
-            telegramBot.sendAllMessages("Внимание вопрос сколько матерей у Ани");
+            telegramBot.sendAllMessages("Внимание вопрос: сколько матерей у Ани?");
             paused = false;
-            model.addAttribute("next", id );
 
+            model.addAttribute("next", id);
+            model.addAttribute("slides", pptService.getSlideCount());
             return "test_viewer";
         }
 
@@ -58,4 +65,5 @@ public class PptController {
         ImageIO.write(image, "png", baos);
         return baos.toByteArray();
     }
+
 }
